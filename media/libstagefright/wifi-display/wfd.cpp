@@ -1,5 +1,6 @@
 /*
  * Copyright 2012, The Android Open Source Project
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +24,7 @@
 
 #include <binder/ProcessState.h>
 #include <binder/IServiceManager.h>
+#include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
 #include <media/AudioSystem.h>
 #include <media/IMediaPlayerService.h>
@@ -30,6 +32,7 @@
 #include <media/IRemoteDisplayClient.h>
 #include <media/stagefright/DataSource.h>
 #include <media/stagefright/foundation/ADebug.h>
+#include <ui/DisplayInfo.h>
 
 namespace android {
 
@@ -90,6 +93,11 @@ void RemoteDisplayClient::onDisplayConnected(
     ALOGI("onDisplayConnected width=%u, height=%u, flags = 0x%08x",
           width, height, flags);
 
+    sp<IBinder> dtoken(SurfaceComposerClient::getBuiltInDisplay(
+                    ISurfaceComposer::eDisplayIdMain));
+    DisplayInfo info;
+    SurfaceComposerClient::getDisplayInfo(dtoken, &info);
+
     mSurfaceTexture = surfaceTexture;
     mDisplayBinder = mComposerClient->createDisplay(
             String8("foo"), false /* secure */);
@@ -97,8 +105,24 @@ void RemoteDisplayClient::onDisplayConnected(
     SurfaceComposerClient::openGlobalTransaction();
     mComposerClient->setDisplaySurface(mDisplayBinder, mSurfaceTexture);
 
-    Rect layerStackRect(1280, 720);  // XXX fix this.
-    Rect displayRect(1280, 720);
+    int physWidth = 1280;
+    int physHeight = 720;
+    Rect layerStackRect(info.w, info.h);  // XXX fix this.
+    int displayRectWidth, displayRectHeight;
+    if (physWidth * info.h
+            < physHeight * info.w) {
+        // Letter box.
+        displayRectWidth = physWidth;
+        displayRectHeight = info.h * physWidth / info.w;
+    } else {
+        // Pillar box.
+        displayRectWidth = info.w * physHeight / info.h;
+        displayRectHeight = physHeight;
+    }
+    int displayRectTop = (physHeight - displayRectHeight) / 2;
+    int displayRectLeft = (physWidth - displayRectWidth) / 2;
+    Rect displayRect(displayRectLeft, displayRectTop, displayRectLeft + displayRectWidth,
+                      displayRectTop + displayRectHeight);
 
     mComposerClient->setDisplayProjection(
             mDisplayBinder, 0 /* 0 degree rotation */,

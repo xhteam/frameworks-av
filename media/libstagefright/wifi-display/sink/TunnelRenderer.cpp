@@ -24,6 +24,7 @@
 
 #include <binder/IMemory.h>
 #include <binder/IServiceManager.h>
+#include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
 #include <media/IMediaPlayerService.h>
 #include <media/IStreamSource.h>
@@ -333,8 +334,10 @@ void TunnelRenderer::initPlayer() {
         mComposerClient = new SurfaceComposerClient;
         CHECK_EQ(mComposerClient->initCheck(), (status_t)OK);
 
+        sp<IBinder> dtoken(SurfaceComposerClient::getBuiltInDisplay(
+                    ISurfaceComposer::eDisplayIdMain));
         DisplayInfo info;
-        SurfaceComposerClient::getDisplayInfo(0, &info);
+        SurfaceComposerClient::getDisplayInfo(dtoken, &info);
         ssize_t displayWidth = info.w;
         ssize_t displayHeight = info.h;
 

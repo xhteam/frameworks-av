@@ -1,5 +1,6 @@
 /*
  * Copyright 2012, The Android Open Source Project
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -328,10 +329,12 @@ status_t WifiDisplaySink::onReceiveSetupResponse(
 
     mState = PAUSED;
 
+    AString setURI = StringPrintf("rtsp://%s:7236/wfd1.0/streamid=0",
+                mRTSPHost.c_str());
     return sendPlay(
             sessionID,
             !mSetupURI.empty()
-                ? mSetupURI.c_str() : "rtsp://x.x.x.x:x/wfd1.0/streamid=0");
+                ? mSetupURI.c_str() : setURI.c_str());
 }
 
 status_t WifiDisplaySink::configureTransport(const sp<ParsedMessage> &msg) {
@@ -474,10 +477,12 @@ void WifiDisplaySink::onGetParameterRequest(
         int32_t sessionID,
         int32_t cseq,
         const sp<ParsedMessage> &data) {
-    AString body =
-        "wfd_video_formats: xxx\r\n"
-        "wfd_audio_codecs: xxx\r\n"
-        "wfd_client_rtp_ports: RTP/AVP/UDP;unicast xxx 0 mode=play\r\n";
+    AString body = StringPrintf(
+        "wfd_video_formats: "
+        "28 00 02 02 00000020 00000000 00000000 00 0000 0000 00 none none\r\n"
+        "wfd_audio_codecs: %s\r\n"
+        "wfd_client_rtp_ports: RTP/AVP/UDP;unicast %d 0 mode=play\r\n",
+        "LPCM 00000002 00", 15550);
 
     AString response = "RTSP/1.0 200 OK\r\n";
     AppendCommonResponse(&response, cseq);
@@ -590,10 +595,12 @@ void WifiDisplaySink::onSetParameterRequest(
     const char *content = data->getContent();
 
     if (strstr(content, "wfd_trigger_method: SETUP\r\n") != NULL) {
+        AString setURI = StringPrintf("rtsp://%s:7236/wfd1.0/streamid=0",
+                         mRTSPHost.c_str());
         status_t err =
             sendSetup(
                     sessionID,
-                    "rtsp://x.x.x.x:x/wfd1.0/streamid=0");
+                    setURI.c_str());
 
         CHECK_EQ(err, (status_t)OK);
     }
